@@ -1,14 +1,17 @@
 mod barcodes;
 mod cli;
 mod config;
+mod log;
 
 use anyhow::Result;
+use chrono::Local;
 use clap::Parser;
 use cli::Cli;
 use config::Config;
 use flate2::{write::GzEncoder, Compression};
 use fxread::initialize_reader;
-use std::{fs::File, io::Write};
+use log::Log;
+use std::{fs::File, io::Write, time::Instant};
 
 /// Writes a record to a gzip fastq file
 fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) -> Result<()> {
@@ -30,24 +33,27 @@ fn main() -> Result<()> {
 
     let r1_filename = args.prefix.clone() + "_R1.fq.gz";
     let r2_filename = args.prefix.clone() + "_R2.fq.gz";
+    let log_filename = args.prefix.clone() + "_log.yaml";
 
-    let mut nfilt_1 = 0;
-    let mut nfilt_2 = 0;
-    let mut nfilt_3 = 0;
-    let mut nfilt_4 = 0;
-    let mut n_reads = 0;
-    let mut n_passing = 0;
+    let mut num_filtered_1 = 0;
+    let mut num_filtered_2 = 0;
+    let mut num_filtered_3 = 0;
+    let mut num_filtered_4 = 0;
+    let mut total_reads = 0;
+    let mut passing_reads = 0;
+    let start_time = Instant::now();
+    let timestamp = Local::now().to_string();
 
     let record_iter = r1
         .zip(r2)
-        .inspect(|_| n_reads += 1)
+        .inspect(|_| total_reads += 1)
         .filter_map(|(rec1, rec2)| {
             if let Some((pos, b1_idx)) =
                 config.match_subsequence(rec1.seq(), 0, 0, Some(args.offset))
             {
                 Some((rec1, rec2, pos, b1_idx))
             } else {
-                nfilt_1 += 1;
+                num_filtered_1 += 1;
                 None
             }
         })
@@ -55,7 +61,7 @@ fn main() -> Result<()> {
             if let Some((new_pos, b2_idx)) = config.match_subsequence(rec1.seq(), 1, pos, None) {
                 Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx))
             } else {
-                nfilt_2 += 1;
+                num_filtered_2 += 1;
                 None
             }
         })
@@ -63,16 +69,16 @@ fn main() -> Result<()> {
             if let Some((new_pos, b3_idx)) = config.match_subsequence(&rec1.seq(), 2, pos, None) {
                 Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx, b3_idx))
             } else {
-                nfilt_3 += 1;
+                num_filtered_3 += 1;
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx)| {
             if let Some((new_pos, b4_idx)) = config.match_subsequence(&rec1.seq(), 3, pos, None) {
-                n_passing += 1;
+                passing_reads += 1;
                 Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx, b3_idx, b4_idx))
             } else {
-                nfilt_4 += 1;
+                num_filtered_4 += 1;
                 None
             }
         })
@@ -104,20 +110,27 @@ fn main() -> Result<()> {
         write_to_fastq(&mut r2_writer, rec2.id(), rec2.seq(), rec2.qual().unwrap())?;
     }
 
+    let elapsed = start_time.elapsed().as_secs_f64();
+
+    let log = Log::new(
+        total_reads,
+        passing_reads,
+        num_filtered_1,
+        num_filtered_2,
+        num_filtered_3,
+        num_filtered_4,
+        args.r1.clone(),
+        args.r2.clone(),
+        r1_filename.clone(),
+        r2_filename.clone(),
+        timestamp,
+        elapsed,
+    );
+
     if !args.quiet {
-        eprintln!("Total number of reads: {}", n_reads);
-        eprintln!("Number of reads passing: {}", n_passing);
-        eprintln!(
-            "Percentage of reads passing: {:.2}%",
-            n_passing as f64 / n_reads as f64 * 100.0
-        );
-        eprintln!("Filtered reads missing barcode 1: {}", nfilt_1);
-        eprintln!("Filtered reads missing barcode 2: {}", nfilt_2);
-        eprintln!("Filtered reads missing barcode 3: {}", nfilt_3);
-        eprintln!("Filtered reads missing barcode 4: {}", nfilt_4);
-        eprintln!("Wrote R1 reads to: {}", r1_filename);
-        eprintln!("Wrote R2 reads to: {}", r2_filename);
+        log.stderr()?;
     }
+    log.to_file(&log_filename)?;
 
     Ok(())
 }
