@@ -27,6 +27,10 @@ pub struct Cli {
     #[clap(short = 'u', long, default_value = "12")]
     pub umi_len: usize,
 
+    /// Use exact matching instead of one mismatch
+    #[clap(short = 'x', long)]
+    pub exact: bool,
+
     /// Do not write anything to stderr
     #[clap(short = 'q', long)]
     pub quiet: bool,

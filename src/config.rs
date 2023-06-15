@@ -10,20 +10,20 @@ pub struct Config {
     bc4: Barcodes,
 }
 impl Config {
-    pub fn from_file(path: &str) -> Result<Self> {
+    pub fn from_file(path: &str, exact: bool) -> Result<Self> {
         let contents = std::fs::read_to_string(path)?;
         let yaml = YamlLoader::load_from_str(&contents)?;
-        Self::from_yaml(yaml)
+        Self::from_yaml(yaml, exact)
     }
 
-    pub fn from_yaml(yaml: Vec<Yaml>) -> Result<Self> {
+    pub fn from_yaml(yaml: Vec<Yaml>, exact: bool) -> Result<Self> {
         let spacer1 = Self::load_spacer(&yaml[0], "s1")?;
         let spacer2 = Self::load_spacer(&yaml[0], "s2")?;
         let spacer3 = Self::load_spacer(&yaml[0], "s3")?;
-        let bc1 = Self::load_barcode(&yaml[0], "bc1", Some(&spacer1))?;
-        let bc2 = Self::load_barcode(&yaml[0], "bc2", Some(&spacer2))?;
-        let bc3 = Self::load_barcode(&yaml[0], "bc3", Some(&spacer3))?;
-        let bc4 = Self::load_barcode(&yaml[0], "bc4", None)?;
+        let bc1 = Self::load_barcode(&yaml[0], "bc1", Some(&spacer1), exact)?;
+        let bc2 = Self::load_barcode(&yaml[0], "bc2", Some(&spacer2), exact)?;
+        let bc3 = Self::load_barcode(&yaml[0], "bc3", Some(&spacer3), exact)?;
+        let bc4 = Self::load_barcode(&yaml[0], "bc4", None, exact)?;
         Ok(Self { bc1, bc2, bc3, bc4 })
     }
 
@@ -34,12 +34,12 @@ impl Config {
             .ok_or(anyhow!("Spacer {} not found", spacer))
     }
 
-    fn load_barcode(yaml: &Yaml, barcode: &str, spacer: Option<&Spacer>) -> Result<Barcodes> {
+    fn load_barcode(yaml: &Yaml, barcode: &str, spacer: Option<&Spacer>, exact: bool) -> Result<Barcodes> {
         if let Some(bc) = yaml["barcodes"][barcode].as_str() {
             if let Some(spacer) = spacer {
-                Barcodes::from_file_with_spacer(bc, spacer)
+                Barcodes::from_file_with_spacer(bc, spacer, exact)
             } else {
-                Barcodes::from_file(bc)
+                Barcodes::from_file(bc, exact)
             }
         } else {
             Err(anyhow!("Barcode {} not found", barcode))
@@ -112,13 +112,28 @@ mod testing {
     
     #[test]
     fn load_yaml() {
-        let config = Config::from_file(TEST_PATH);
+        let config = Config::from_file(TEST_PATH, false);
+        assert!(config.is_ok());
+    }
+
+    #[test]
+    fn load_yaml_exact() {
+        let config = Config::from_file(TEST_PATH, true);
         assert!(config.is_ok());
     }
 
     #[test]
     fn barcode_lengths() {
-        let config = Config::from_file(TEST_PATH).unwrap();
+        let config = Config::from_file(TEST_PATH, false).unwrap();
+        assert_eq!(config.bc1.len(), 8 + 3);
+        assert_eq!(config.bc2.len(), 6 + 3);
+        assert_eq!(config.bc3.len(), 6 + 5);
+        assert_eq!(config.bc4.len(), 8);
+    }
+
+    #[test]
+    fn barcode_lengths_exact() {
+        let config = Config::from_file(TEST_PATH, true).unwrap();
         assert_eq!(config.bc1.len(), 8 + 3);
         assert_eq!(config.bc2.len(), 6 + 3);
         assert_eq!(config.bc3.len(), 6 + 5);
@@ -127,7 +142,28 @@ mod testing {
 
     #[test]
     fn barcode_sequences() {
-        let config = Config::from_file(TEST_PATH).unwrap();
+        let config = Config::from_file(TEST_PATH, false).unwrap();
+
+        assert_eq!(config.bc1.get_barcode(0).unwrap(), b"AGAAACCAATG");
+        assert_eq!(config.bc1.get_barcode(95).unwrap(), b"TCTTTGACATG");
+        assert_eq!(config.bc1.get_barcode(96), None);
+
+        assert_eq!(config.bc2.get_barcode(0).unwrap(), b"TCTGTGGAG");
+        assert_eq!(config.bc2.get_barcode(95).unwrap(), b"GTAATCGAG");
+        assert_eq!(config.bc2.get_barcode(96), None);
+
+        assert_eq!(config.bc3.get_barcode(0).unwrap(), b"AAAGTGTCGAG");
+        assert_eq!(config.bc3.get_barcode(95).unwrap(), b"CTGAAGTCGAG");
+        assert_eq!(config.bc3.get_barcode(96), None);
+
+        assert_eq!(config.bc4.get_barcode(0).unwrap(), b"CTGGGTAT");
+        assert_eq!(config.bc4.get_barcode(95).unwrap(), b"AAACTACA");
+        assert_eq!(config.bc4.get_barcode(96), None);
+    }
+
+    #[test]
+    fn barcode_sequences_exact() {
+        let config = Config::from_file(TEST_PATH, true).unwrap();
 
         assert_eq!(config.bc1.get_barcode(0).unwrap(), b"AGAAACCAATG");
         assert_eq!(config.bc1.get_barcode(95).unwrap(), b"TCTTTGACATG");
@@ -148,7 +184,7 @@ mod testing {
 
     #[test]
     fn construct_building_a() {
-        let config = Config::from_file(TEST_PATH).unwrap();
+        let config = Config::from_file(TEST_PATH, false).unwrap();
         let bc = config.build_barcode(0, 0, 0, 0);
         let exp = [
             "AGAAACCAATG".as_bytes(),
@@ -161,7 +197,33 @@ mod testing {
 
     #[test]
     fn construct_building_b() {
-        let config = Config::from_file(TEST_PATH).unwrap();
+        let config = Config::from_file(TEST_PATH, false).unwrap();
+        let bc = config.build_barcode(0, 95, 0, 95);
+        let exp = [
+            "AGAAACCAATG".as_bytes(),
+            "GTAATCGAG".as_bytes(),
+            "AAAGTGTCGAG".as_bytes(),
+            "AAACTACA".as_bytes(),
+        ].concat();
+        assert_eq!(bc, exp);
+    }
+
+    #[test]
+    fn construct_building_a_exact() {
+        let config = Config::from_file(TEST_PATH, true).unwrap();
+        let bc = config.build_barcode(0, 0, 0, 0);
+        let exp = [
+            "AGAAACCAATG".as_bytes(),
+            "TCTGTGGAG".as_bytes(),
+            "AAAGTGTCGAG".as_bytes(),
+            "CTGGGTAT".as_bytes(),
+        ].concat();
+        assert_eq!(bc, exp);
+    }
+
+    #[test]
+    fn construct_building_b_exact() {
+        let config = Config::from_file(TEST_PATH, true).unwrap();
         let bc = config.build_barcode(0, 95, 0, 95);
         let exp = [
             "AGAAACCAATG".as_bytes(),

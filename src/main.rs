@@ -27,7 +27,7 @@ fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) 
 
 fn main() -> Result<()> {
     let args = Cli::parse();
-    let config = Config::from_file(&args.config)?;
+    let config = Config::from_file(&args.config, args.exact)?;
     let r1 = initialize_reader(&args.r1)?;
     let r2 = initialize_reader(&args.r2)?;
 
