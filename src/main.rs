@@ -37,10 +37,10 @@ fn find_barcode(
 }
 
 fn main() -> Result<()> {
-    let b1_fn = "data/fb_v3_bc1.tsv";
-    let b2_fn = "data/fb_v3_bc2.tsv";
-    let b3_fn = "data/fb_v3_bc3.tsv";
-    let b4_fn = "data/fb_v3_bc4.tsv";
+    let b1_fn = "data/barcodes_v3/fb_v3_bc1.tsv";
+    let b2_fn = "data/barcodes_v3/fb_v3_bc2.tsv";
+    let b3_fn = "data/barcodes_v3/fb_v3_bc3.tsv";
+    let b4_fn = "data/barcodes_v3/fb_v3_bc4.tsv";
 
     let b1 = read_barcodes(b1_fn)?;
     let b2 = read_barcodes(b2_fn)?;
