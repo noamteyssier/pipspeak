@@ -96,24 +96,28 @@ fn main() -> Result<()> {
             (construct_seq, construct_qual, rec1, rec2)
         });
 
-    let mut r1_writer = GzEncoder::new(File::create(r1_filename)?, Compression::default());
-    let mut r2_writer = GzEncoder::new(File::create(r2_filename)?, Compression::default());
+    let mut r1_writer = GzEncoder::new(File::create(&r1_filename)?, Compression::default());
+    let mut r2_writer = GzEncoder::new(File::create(&r2_filename)?, Compression::default());
 
     for (construct_seq, construct_qual, rec1, rec2) in record_iter {
         write_to_fastq(&mut r1_writer, rec1.id(), &construct_seq, &construct_qual)?;
         write_to_fastq(&mut r2_writer, rec2.id(), rec2.seq(), rec2.qual().unwrap())?;
     }
 
-    eprintln!("Total number of reads: {}", n_reads);
-    eprintln!("Number of reads passing: {}", n_passing);
-    eprintln!(
-        "Percentage of reads passing: {:.2}%",
-        n_passing as f64 / n_reads as f64 * 100.0
-    );
-    eprintln!("Filtered reads missing barcode 1: {}", nfilt_1);
-    eprintln!("Filtered reads missing barcode 2: {}", nfilt_2);
-    eprintln!("Filtered reads missing barcode 3: {}", nfilt_3);
-    eprintln!("Filtered reads missing barcode 4: {}", nfilt_4);
+    if !args.quiet {
+        eprintln!("Total number of reads: {}", n_reads);
+        eprintln!("Number of reads passing: {}", n_passing);
+        eprintln!(
+            "Percentage of reads passing: {:.2}%",
+            n_passing as f64 / n_reads as f64 * 100.0
+        );
+        eprintln!("Filtered reads missing barcode 1: {}", nfilt_1);
+        eprintln!("Filtered reads missing barcode 2: {}", nfilt_2);
+        eprintln!("Filtered reads missing barcode 3: {}", nfilt_3);
+        eprintln!("Filtered reads missing barcode 4: {}", nfilt_4);
+        eprintln!("Wrote R1 reads to: {}", r1_filename);
+        eprintln!("Wrote R2 reads to: {}", r2_filename);
+    }
 
     Ok(())
 }
