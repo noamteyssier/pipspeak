@@ -8,7 +8,10 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 clap = { version = "4.3.4", features = ["derive"] }
-flate2 = "1.0.26"
+flate2 = { version = "1.0.26", features = ["zlib-ng"] }
 fxread = "0.2.5"
 hashbrown = "0.14.0"
 yaml-rust = "0.4.5"
+
+[profile.release]
+debug = true
