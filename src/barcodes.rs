@@ -5,6 +5,9 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+type BarcodeID = usize;
+type EndPos = usize;
+
 #[derive(Debug)]
 pub struct Barcodes {
     map: HashMap<Vec<u8>, usize>,
@@ -29,6 +32,8 @@ impl Barcodes {
         Self::parse_buffer(reader, Some(spacer))
     }
 
+    /// Parses a buffer and returns a Barcodes object
+    /// If a spacer is given, it is appended to each barcode
     pub fn parse_buffer<R: BufRead>(reader: R, spacer: Option<&Spacer>) -> Result<Self> {
         let mut map = HashMap::new();
         let mut index = HashMap::new();
@@ -50,6 +55,8 @@ impl Barcodes {
         Ok(Self { map, index, len })
     }
 
+    /// Reads a sequence from a line and appends a spacer if given
+    /// Returns the sequence as a vector of integer nucleotides
     fn read_sequence(line: &str, spacer: Option<&Spacer>) -> Vec<u8> {
         let barcode = line.trim().as_bytes().to_vec();
         if let Some(spacer) = spacer {
@@ -64,7 +71,10 @@ impl Barcodes {
     /// Checks if a sequence contains a barcode as a substring
     /// and returns the position of the first nucleotide after the barcode
     /// as well as the barcode index
-    pub fn match_sequence(&self, sequence: &[u8]) -> Option<(usize, usize)> {
+    pub fn match_sequence(&self, sequence: &[u8]) -> Option<(EndPos, BarcodeID)> {
+        if sequence.len() < self.len {
+            return None;
+        }
         sequence
             .windows(self.len)
             .position(|window| self.map.contains_key(window))
@@ -84,7 +94,10 @@ impl Barcodes {
         sequence: &[u8],
         start: usize,
         end: usize,
-    ) -> Option<(usize, usize)> {
+    ) -> Option<(EndPos, BarcodeID)> {
+        if start > sequence.len() || end > sequence.len() || start > end {
+            return None;
+        }
         self.match_sequence(&sequence[start..end])
     }
 
@@ -93,6 +106,13 @@ impl Barcodes {
         self.index.get(&idx).map(|bc| &bc[..])
     }
 
+    /// Returns the barcode index for a given sequence
+    #[allow(dead_code)]
+    pub fn get_id(&self, barcode: &[u8]) -> Option<usize> {
+        self.map.get(barcode).map(|id| *id)
+    }
+
+    /// Returns the length of each barcode
     pub fn len(&self) -> usize {
         self.len
     }
@@ -109,5 +129,113 @@ impl Spacer {
     }
     pub fn seq(&self) -> &[u8] {
         &self.seq
+    }
+}
+
+#[cfg(test)]
+mod testing {
+    use super::*;
+
+    const TEST_FILE: &str = "data/barcodes_v3/fb_v3_bc1.tsv";
+    const TEST_BUFFER: &[u8]= b"AGAAACCA\nGATTTCCC\nAAGTCCAA\nGAGAAACC";
+    const MALFORMED_BUFFER: &[u8]= b"AGAAACCA\nGATTTCCC\nAAGTCCAA\nGAGAAACCC";
+    const TEST_SPACER: &str = "ATG";
+    const NOMATCH_SEQ: &[u8] = b"SHOULDNOTMATCHANYTHING";
+    const ENDMATCH_SEQ: &[u8] = b"OFFSETXAGAAACCA";
+    const STARTMATCH_SEQ: &[u8] = b"AGAAACCAANDSOMETHINGELSE";
+    const OFFSETMATCH_SEQ: &[u8] = b"123AGAAACCASOMETHINGELSE";
+
+    #[test]
+    fn from_file() {
+        let barcodes = Barcodes::from_file(TEST_FILE).unwrap();
+        assert_eq!(barcodes.len(), 8);
+        assert_eq!(barcodes.map.len(), 96);
+        assert_eq!(barcodes.index.len(), 96);
+    }
+
+    #[test]
+    fn from_buffer() {
+        let barcodes = Barcodes::from_buffer(TEST_BUFFER).unwrap();
+        assert_eq!(barcodes.len(), 8);
+        assert_eq!(barcodes.map.len(), 4);
+        assert_eq!(barcodes.index.len(), 4);
+
+        assert_eq!(barcodes.get_barcode(0).unwrap(), b"AGAAACCA");
+        assert_eq!(barcodes.get_barcode(1).unwrap(), b"GATTTCCC");
+        assert_eq!(barcodes.get_barcode(2).unwrap(), b"AAGTCCAA");
+        assert_eq!(barcodes.get_barcode(3).unwrap(), b"GAGAAACC");
+
+        assert_eq!(barcodes.get_id(b"AGAAACCA").unwrap(), 0);
+        assert_eq!(barcodes.get_id(b"GATTTCCC").unwrap(), 1);
+        assert_eq!(barcodes.get_id(b"AAGTCCAA").unwrap(), 2);
+        assert_eq!(barcodes.get_id(b"GAGAAACC").unwrap(), 3);
+    }
+
+    #[test]
+    fn from_file_with_spacer() {
+        let spacer = Spacer::from_str(TEST_SPACER);
+        let barcodes = Barcodes::from_file_with_spacer(TEST_FILE, &spacer).unwrap();
+        assert_eq!(barcodes.len(), 11);
+        assert_eq!(barcodes.map.len(), 96);
+        assert_eq!(barcodes.index.len(), 96);
+    }
+
+    #[test]
+    fn from_buffer_with_spacer() {
+        let spacer = Spacer::from_str(TEST_SPACER);
+        let barcodes = Barcodes::from_buffer_with_spacer(TEST_BUFFER, &spacer).unwrap();
+        assert_eq!(barcodes.len(), 11);
+        assert_eq!(barcodes.map.len(), 4);
+        assert_eq!(barcodes.index.len(), 4);
+
+        assert_eq!(barcodes.get_barcode(0).unwrap(), b"AGAAACCAATG");
+        assert_eq!(barcodes.get_barcode(1).unwrap(), b"GATTTCCCATG");
+        assert_eq!(barcodes.get_barcode(2).unwrap(), b"AAGTCCAAATG");
+        assert_eq!(barcodes.get_barcode(3).unwrap(), b"GAGAAACCATG");
+
+        assert_eq!(barcodes.get_id(b"AGAAACCAATG").unwrap(), 0);
+        assert_eq!(barcodes.get_id(b"GATTTCCCATG").unwrap(), 1);
+        assert_eq!(barcodes.get_id(b"AAGTCCAAATG").unwrap(), 2);
+        assert_eq!(barcodes.get_id(b"GAGAAACCATG").unwrap(), 3);
+    }
+
+    #[test]
+    fn size_variance() {
+        let barcodes = Barcodes::from_buffer(MALFORMED_BUFFER);
+        assert!(barcodes.is_err());
+    }
+
+    #[test]
+    fn size_variance_with_spacer() {
+        let spacer = Spacer::from_str(TEST_SPACER);
+        let barcodes = Barcodes::from_buffer_with_spacer(MALFORMED_BUFFER, &spacer);
+        assert!(barcodes.is_err());
+    }
+
+    #[test]
+    fn match_sequence() {
+        let barcodes = Barcodes::from_buffer(TEST_BUFFER).unwrap();
+        assert_eq!(barcodes.match_sequence(NOMATCH_SEQ), None);
+        assert_eq!(barcodes.match_sequence(ENDMATCH_SEQ), Some((7 + barcodes.len(), 0)));
+        assert_eq!(barcodes.match_sequence(STARTMATCH_SEQ), Some((0 + barcodes.len(), 0)));
+        assert_eq!(barcodes.match_sequence(OFFSETMATCH_SEQ), Some((3 + barcodes.len(), 0)));
+    }
+
+    #[test]
+    fn match_subsequence() {
+        let barcodes = Barcodes::from_buffer(TEST_BUFFER).unwrap();
+        let start_pos = 7;
+        let end_pos = start_pos + barcodes.len();
+        assert_eq!(barcodes.match_subsequence(NOMATCH_SEQ, start_pos, end_pos), None);
+        assert_eq!(barcodes.match_subsequence(ENDMATCH_SEQ, start_pos, end_pos), Some((0 + barcodes.len(), 0)));
+        assert_eq!(barcodes.match_subsequence(STARTMATCH_SEQ, start_pos, end_pos), None);
+        assert_eq!(barcodes.match_subsequence(OFFSETMATCH_SEQ, start_pos, end_pos), None);
+    }
+
+    #[test]
+    fn match_empty() {
+        let barcodes = Barcodes::from_buffer(TEST_BUFFER).unwrap();
+        assert_eq!(barcodes.match_sequence(b""), None);
+        assert_eq!(barcodes.match_subsequence(b"", 0, barcodes.len()), None);
     }
 }
