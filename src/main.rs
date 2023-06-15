@@ -125,6 +125,9 @@ fn main() -> Result<()> {
         r2_filename.clone(),
         timestamp,
         elapsed,
+        args.offset,
+        args.umi_len,
+        args.exact,
     );
 
     if !args.quiet {

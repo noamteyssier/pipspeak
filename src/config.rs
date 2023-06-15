@@ -1,7 +1,27 @@
-use anyhow::{anyhow, Result};
-use yaml_rust::{Yaml, YamlLoader};
-
+use anyhow::Result;
+use serde::Deserialize;
 use crate::barcodes::{Barcodes, Spacer};
+
+#[derive(Debug, Deserialize)]
+pub struct ConfigYaml {
+    barcodes: ConfigBarcodes,
+    spacers: ConfigSpacers,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ConfigBarcodes {
+    bc1: String,
+    bc2: String,
+    bc3: String,
+    bc4: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ConfigSpacers {
+    s1: String,
+    s2: String,
+    s3: String,
+}
 
 pub struct Config {
     bc1: Barcodes,
@@ -12,42 +32,30 @@ pub struct Config {
 impl Config {
     pub fn from_file(path: &str, exact: bool) -> Result<Self> {
         let contents = std::fs::read_to_string(path)?;
-        let yaml = YamlLoader::load_from_str(&contents)?;
+        let yaml = serde_yaml::from_str::<ConfigYaml>(&contents)?;
         Self::from_yaml(yaml, exact)
     }
 
-    pub fn from_yaml(yaml: Vec<Yaml>, exact: bool) -> Result<Self> {
-        let spacer1 = Self::load_spacer(&yaml[0], "s1")?;
-        let spacer2 = Self::load_spacer(&yaml[0], "s2")?;
-        let spacer3 = Self::load_spacer(&yaml[0], "s3")?;
-        let bc1 = Self::load_barcode(&yaml[0], "bc1", Some(&spacer1), exact)?;
-        let bc2 = Self::load_barcode(&yaml[0], "bc2", Some(&spacer2), exact)?;
-        let bc3 = Self::load_barcode(&yaml[0], "bc3", Some(&spacer3), exact)?;
-        let bc4 = Self::load_barcode(&yaml[0], "bc4", None, exact)?;
+    pub fn from_yaml(yaml: ConfigYaml, exact: bool) -> Result<Self> {
+        let spacer1 = Spacer::from_str(&yaml.spacers.s1);
+        let spacer2 = Spacer::from_str(&yaml.spacers.s2);
+        let spacer3 = Spacer::from_str(&yaml.spacers.s3);
+        let bc1 = Self::load_barcode(&yaml.barcodes.bc1, Some(&spacer1), exact)?;
+        let bc2 = Self::load_barcode(&yaml.barcodes.bc2, Some(&spacer2), exact)?;
+        let bc3 = Self::load_barcode(&yaml.barcodes.bc3, Some(&spacer3), exact)?;
+        let bc4 = Self::load_barcode(&yaml.barcodes.bc4, None, exact)?;
         Ok(Self { bc1, bc2, bc3, bc4 })
     }
 
-    fn load_spacer(yaml: &Yaml, spacer: &str) -> Result<Spacer> {
-        yaml["spacers"][spacer]
-            .as_str()
-            .map(Spacer::from_str)
-            .ok_or(anyhow!("Spacer {} not found", spacer))
-    }
-
     fn load_barcode(
-        yaml: &Yaml,
-        barcode: &str,
+        path: &str,
         spacer: Option<&Spacer>,
         exact: bool,
     ) -> Result<Barcodes> {
-        if let Some(bc) = yaml["barcodes"][barcode].as_str() {
-            if let Some(spacer) = spacer {
-                Barcodes::from_file_with_spacer(bc, spacer, exact)
-            } else {
-                Barcodes::from_file(bc, exact)
-            }
+        if let Some(spacer) = spacer {
+            Barcodes::from_file_with_spacer(path, spacer, exact)
         } else {
-            Err(anyhow!("Barcode {} not found", barcode))
+            Barcodes::from_file(path, exact)
         }
     }
 
