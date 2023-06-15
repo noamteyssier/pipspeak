@@ -12,7 +12,7 @@ pub struct Cli {
     pub r2: String,
 
     /// Output file prefix (output files will be named <prefix>_R[12].fq.gz)
-    #[clap(short = 'p', long, value_parser)]
+    #[clap(short = 'p', long, value_parser, default_value = "pipspeak")]
     pub prefix: String,
 
     /// The amount of nucleotides away from the start of R1 to accept a barcode
@@ -26,4 +26,8 @@ pub struct Cli {
     /// The length of the UMI
     #[clap(short = 'u', long, default_value = "12")]
     pub umi_len: usize,
+
+    /// Do not write anything to stderr
+    #[clap(short = 'q', long)]
+    pub quiet: bool,
 }
