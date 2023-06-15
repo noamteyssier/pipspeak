@@ -29,13 +29,21 @@ impl Barcodes {
         Self::parse_buffer(reader, None, exact)
     }
 
-    pub fn from_buffer_with_spacer<R: BufRead>(reader: R, spacer: &Spacer, exact: bool) -> Result<Self> {
+    pub fn from_buffer_with_spacer<R: BufRead>(
+        reader: R,
+        spacer: &Spacer,
+        exact: bool,
+    ) -> Result<Self> {
         Self::parse_buffer(reader, Some(spacer), exact)
     }
 
     /// Parses a buffer and returns a Barcodes object
     /// If a spacer is given, it is appended to each barcode
-    pub fn parse_buffer<R: BufRead>(reader: R, spacer: Option<&Spacer>, exact: bool) -> Result<Self> {
+    pub fn parse_buffer<R: BufRead>(
+        reader: R,
+        spacer: Option<&Spacer>,
+        exact: bool,
+    ) -> Result<Self> {
         let mut map = HashMap::new();
         let mut index = HashMap::new();
         let mut sizes = HashSet::new();
@@ -51,7 +59,10 @@ impl Barcodes {
             let parent_barcodes = map.keys().cloned().collect::<Vec<_>>();
             let dsb = Disambibyte::from_slice(&parent_barcodes);
             dsb.unambiguous().iter().for_each(|(child, parent)| {
-                map.insert(child.sequence().to_owned(), *map.get(parent.sequence()).unwrap());
+                map.insert(
+                    child.sequence().to_owned(),
+                    *map.get(parent.sequence()).unwrap(),
+                );
             });
         }
 
@@ -146,8 +157,8 @@ mod testing {
     use super::*;
 
     const TEST_FILE: &str = "data/barcodes_v3/fb_v3_bc1.tsv";
-    const TEST_BUFFER: &[u8]= b"AGAAACCA\nGATTTCCC\nAAGTCCAA\nGAGAAACC";
-    const MALFORMED_BUFFER: &[u8]= b"AGAAACCA\nGATTTCCC\nAAGTCCAA\nGAGAAACCC";
+    const TEST_BUFFER: &[u8] = b"AGAAACCA\nGATTTCCC\nAAGTCCAA\nGAGAAACC";
+    const MALFORMED_BUFFER: &[u8] = b"AGAAACCA\nGATTTCCC\nAAGTCCAA\nGAGAAACCC";
     const TEST_SPACER: &str = "ATG";
     const NOMATCH_SEQ: &[u8] = b"SHOULDNOTMATCHANYTHING";
     const ENDMATCH_SEQ: &[u8] = b"OFFSETXAGAAACCA";
@@ -220,7 +231,6 @@ mod testing {
         assert_eq!(barcodes.get_id(b"CTTTTCCC"), None);
         assert_eq!(barcodes.get_id(b"TTGTCCAA"), None);
         assert_eq!(barcodes.get_id(b"CCGAAACC"), None);
-
     }
 
     #[test]
@@ -324,14 +334,32 @@ mod testing {
 
         // no mismatch
         assert_eq!(barcodes.match_sequence(NOMATCH_SEQ), None);
-        assert_eq!(barcodes.match_sequence(ENDMATCH_SEQ), Some((7 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_sequence(STARTMATCH_SEQ), Some((0 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_sequence(OFFSETMATCH_SEQ), Some((3 + barcodes.len(), 0)));
+        assert_eq!(
+            barcodes.match_sequence(ENDMATCH_SEQ),
+            Some((7 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_sequence(STARTMATCH_SEQ),
+            Some((0 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_sequence(OFFSETMATCH_SEQ),
+            Some((3 + barcodes.len(), 0))
+        );
 
         // with mismatch
-        assert_eq!(barcodes.match_sequence(ENDMATCH_SEQ_1D), Some((7 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_sequence(STARTMATCH_SEQ_1D), Some((0 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_sequence(OFFSETMATCH_SEQ_1D), Some((3 + barcodes.len(), 0)));
+        assert_eq!(
+            barcodes.match_sequence(ENDMATCH_SEQ_1D),
+            Some((7 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_sequence(STARTMATCH_SEQ_1D),
+            Some((0 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_sequence(OFFSETMATCH_SEQ_1D),
+            Some((3 + barcodes.len(), 0))
+        );
     }
 
     #[test]
@@ -340,9 +368,18 @@ mod testing {
 
         // no mismatch
         assert_eq!(barcodes.match_sequence(NOMATCH_SEQ), None);
-        assert_eq!(barcodes.match_sequence(ENDMATCH_SEQ), Some((7 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_sequence(STARTMATCH_SEQ), Some((0 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_sequence(OFFSETMATCH_SEQ), Some((3 + barcodes.len(), 0)));
+        assert_eq!(
+            barcodes.match_sequence(ENDMATCH_SEQ),
+            Some((7 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_sequence(STARTMATCH_SEQ),
+            Some((0 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_sequence(OFFSETMATCH_SEQ),
+            Some((3 + barcodes.len(), 0))
+        );
 
         // with mismatch
         assert_eq!(barcodes.match_sequence(ENDMATCH_SEQ_1D), None);
@@ -357,15 +394,36 @@ mod testing {
         let end_pos = start_pos + barcodes.len();
 
         // no mismatch
-        assert_eq!(barcodes.match_subsequence(NOMATCH_SEQ, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(ENDMATCH_SEQ, start_pos, end_pos), Some((0 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_subsequence(STARTMATCH_SEQ, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(OFFSETMATCH_SEQ, start_pos, end_pos), None);
+        assert_eq!(
+            barcodes.match_subsequence(NOMATCH_SEQ, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(ENDMATCH_SEQ, start_pos, end_pos),
+            Some((0 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_subsequence(STARTMATCH_SEQ, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(OFFSETMATCH_SEQ, start_pos, end_pos),
+            None
+        );
 
         // with mismatch
-        assert_eq!(barcodes.match_subsequence(ENDMATCH_SEQ_1D, start_pos, end_pos), Some((0 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_subsequence(STARTMATCH_SEQ_1D, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(OFFSETMATCH_SEQ_1D, start_pos, end_pos), None);
+        assert_eq!(
+            barcodes.match_subsequence(ENDMATCH_SEQ_1D, start_pos, end_pos),
+            Some((0 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_subsequence(STARTMATCH_SEQ_1D, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(OFFSETMATCH_SEQ_1D, start_pos, end_pos),
+            None
+        );
     }
 
     #[test]
@@ -375,15 +433,36 @@ mod testing {
         let end_pos = start_pos + barcodes.len();
 
         // no mismatch
-        assert_eq!(barcodes.match_subsequence(NOMATCH_SEQ, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(ENDMATCH_SEQ, start_pos, end_pos), Some((0 + barcodes.len(), 0)));
-        assert_eq!(barcodes.match_subsequence(STARTMATCH_SEQ, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(OFFSETMATCH_SEQ, start_pos, end_pos), None);
+        assert_eq!(
+            barcodes.match_subsequence(NOMATCH_SEQ, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(ENDMATCH_SEQ, start_pos, end_pos),
+            Some((0 + barcodes.len(), 0))
+        );
+        assert_eq!(
+            barcodes.match_subsequence(STARTMATCH_SEQ, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(OFFSETMATCH_SEQ, start_pos, end_pos),
+            None
+        );
 
         // with mismatch
-        assert_eq!(barcodes.match_subsequence(ENDMATCH_SEQ_1D, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(STARTMATCH_SEQ_1D, start_pos, end_pos), None);
-        assert_eq!(barcodes.match_subsequence(OFFSETMATCH_SEQ_1D, start_pos, end_pos), None);
+        assert_eq!(
+            barcodes.match_subsequence(ENDMATCH_SEQ_1D, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(STARTMATCH_SEQ_1D, start_pos, end_pos),
+            None
+        );
+        assert_eq!(
+            barcodes.match_subsequence(OFFSETMATCH_SEQ_1D, start_pos, end_pos),
+            None
+        );
     }
 
     #[test]

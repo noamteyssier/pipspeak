@@ -34,7 +34,12 @@ impl Config {
             .ok_or(anyhow!("Spacer {} not found", spacer))
     }
 
-    fn load_barcode(yaml: &Yaml, barcode: &str, spacer: Option<&Spacer>, exact: bool) -> Result<Barcodes> {
+    fn load_barcode(
+        yaml: &Yaml,
+        barcode: &str,
+        spacer: Option<&Spacer>,
+        exact: bool,
+    ) -> Result<Barcodes> {
         if let Some(bc) = yaml["barcodes"][barcode].as_str() {
             if let Some(spacer) = spacer {
                 Barcodes::from_file_with_spacer(bc, spacer, exact)
@@ -109,7 +114,7 @@ mod testing {
     use super::*;
 
     const TEST_PATH: &str = "data/config_v3.yaml";
-    
+
     #[test]
     fn load_yaml() {
         let config = Config::from_file(TEST_PATH, false);
@@ -191,7 +196,8 @@ mod testing {
             "TCTGTGGAG".as_bytes(),
             "AAAGTGTCGAG".as_bytes(),
             "CTGGGTAT".as_bytes(),
-        ].concat();
+        ]
+        .concat();
         assert_eq!(bc, exp);
     }
 
@@ -204,7 +210,8 @@ mod testing {
             "GTAATCGAG".as_bytes(),
             "AAAGTGTCGAG".as_bytes(),
             "AAACTACA".as_bytes(),
-        ].concat();
+        ]
+        .concat();
         assert_eq!(bc, exp);
     }
 
@@ -217,7 +224,8 @@ mod testing {
             "TCTGTGGAG".as_bytes(),
             "AAAGTGTCGAG".as_bytes(),
             "CTGGGTAT".as_bytes(),
-        ].concat();
+        ]
+        .concat();
         assert_eq!(bc, exp);
     }
 
@@ -230,7 +238,8 @@ mod testing {
             "GTAATCGAG".as_bytes(),
             "AAAGTGTCGAG".as_bytes(),
             "AAACTACA".as_bytes(),
-        ].concat();
+        ]
+        .concat();
         assert_eq!(bc, exp);
     }
 }

@@ -20,15 +20,15 @@ pub struct Log {
 }
 impl Log {
     pub fn new(
-        total_reads: usize, 
-        passing_reads: usize, 
-        num_filtered_1: usize, 
-        num_filtered_2: usize, 
-        num_filtered_3: usize, 
-        num_filtered_4: usize, 
+        total_reads: usize,
+        passing_reads: usize,
+        num_filtered_1: usize,
+        num_filtered_2: usize,
+        num_filtered_3: usize,
+        num_filtered_4: usize,
         readpath_r1: String,
         readpath_r2: String,
-        writepath_r1: String, 
+        writepath_r1: String,
         writepath_r2: String,
         timestamp: String,
         elapsed_time: f64,
