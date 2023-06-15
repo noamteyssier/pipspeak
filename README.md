@@ -96,6 +96,14 @@ pipspeak -c data/config_v3.yaml \
     -I data/example_v3/example_R1.fq.gz
 ```
 
+### Outputs
+
+This program will output 3 files per run:
+
+1. `<args.prefix>_R1.fq.gz`: A fastq with the `[barcode][UMI]` construct for all reads passing the whitelist.
+2. `<args.prefix>_R2.fq.gz`: An unaltered fastq of the R2 for all reads passing the whitelist.
+3. `<args.prefix>_log.yaml`: A log file containing the filtering statistics of the run.
+
 ### Configuration
 
 The configuration yaml is very barebones and looks like the following.
