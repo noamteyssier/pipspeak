@@ -1,6 +1,9 @@
-use std::{fs::File, io::{BufReader, BufRead}};
 use anyhow::Result;
 use fxread::initialize_reader;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 fn read_barcodes(filename: &str) -> Result<Vec<Vec<u8>>> {
     let reader = File::open(filename).map(BufReader::new)?;
@@ -19,7 +22,12 @@ fn contains_barcode(seq: &[u8], barcode: &[u8]) -> Option<usize> {
         .map(|pos| pos + barcode.len())
 }
 
-fn find_barcode(seq: &[u8], barcodes: &[Vec<u8>], start_pos: usize, end_pos: usize) -> Option<(usize, usize)> {
+fn find_barcode(
+    seq: &[u8],
+    barcodes: &[Vec<u8>],
+    start_pos: usize,
+    end_pos: usize,
+) -> Option<(usize, usize)> {
     for (bc_idx, barcode) in barcodes.iter().enumerate() {
         if let Some(pos) = contains_barcode(&seq[start_pos..end_pos], barcode) {
             return Some((pos, bc_idx));
@@ -38,11 +46,7 @@ fn main() -> Result<()> {
     let b2 = read_barcodes(b2_fn)?;
     let b3 = read_barcodes(b3_fn)?;
     let b4 = read_barcodes(b4_fn)?;
-    let spacers: Vec<&[u8]> = vec![
-        b"ATG",
-        b"GAG",
-        b"TCGAG",
-    ];
+    let spacers: Vec<&[u8]> = vec![b"ATG", b"GAG", b"TCGAG"];
     let b1 = b1
         .iter()
         .map(|bc| [bc, spacers[0]].concat())
@@ -67,50 +71,58 @@ fn main() -> Result<()> {
     let r1 = initialize_reader(r1_fn)?;
     let r2 = initialize_reader(r2_fn)?;
 
-    let record_iter = r1.zip(r2)
+    let record_iter = r1
+        .zip(r2)
         .filter_map(|(rec1, rec2)| {
             if let Some((pos, b1_idx)) = find_barcode(&rec1.seq(), &b1, 0, b1_size + offset) {
                 Some((rec1, rec2, pos, b1_idx))
-            }
-            else {
+            } else {
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx)| {
-            if let Some((new_pos, b2_idx)) = find_barcode(&rec1.seq(), &b2, pos, pos+b2_size) {
-                Some((rec1, rec2, pos+new_pos, b1_idx, b2_idx))
-            }
-            else {
+            if let Some((new_pos, b2_idx)) = find_barcode(&rec1.seq(), &b2, pos, pos + b2_size) {
+                Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx))
+            } else {
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx, b2_idx)| {
-            if let Some((new_pos, b3_idx)) = find_barcode(&rec1.seq(), &b3, pos, pos+b3_size) {
-                Some((rec1, rec2, pos+new_pos, b1_idx, b2_idx, b3_idx))
-            }
-            else {
+            if let Some((new_pos, b3_idx)) = find_barcode(&rec1.seq(), &b3, pos, pos + b3_size) {
+                Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx, b3_idx))
+            } else {
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx)| {
-            if let Some((new_pos, b4_idx)) = find_barcode(&rec1.seq(), &b4, pos, pos+b4_size) {
-                Some((rec1, rec2, pos+new_pos, b1_idx, b2_idx, b3_idx, b4_idx))
-            }
-            else {
+            if let Some((new_pos, b4_idx)) = find_barcode(&rec1.seq(), &b4, pos, pos + b4_size) {
+                Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx, b3_idx, b4_idx))
+            } else {
                 None
             }
         })
         .map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx, b4_idx)| {
-            let umi = &rec1.seq()[pos..pos+12];
+            let umi = &rec1.seq()[pos..pos + 12];
             (b1_idx, b2_idx, b3_idx, b4_idx, umi.to_vec(), rec2)
         })
         .map(|(b1_idx, b2_idx, b3_idx, b4_idx, umi, rec2)| {
-            let construct =[b1[b1_idx].clone(), b2[b2_idx].clone(), b3[b3_idx].clone(), b4[b4_idx].clone(), umi].concat();
+            let construct = [
+                b1[b1_idx].clone(),
+                b2[b2_idx].clone(),
+                b3[b3_idx].clone(),
+                b4[b4_idx].clone(),
+                umi,
+            ]
+            .concat();
             (construct, rec2)
         });
 
     for (construct, rec2) in record_iter {
-        println!("{}\t{}", String::from_utf8(construct).unwrap(), rec2.seq().len());
+        println!(
+            "{}\t{}",
+            String::from_utf8(construct).unwrap(),
+            rec2.seq().len()
+        );
     }
 
     Ok(())
