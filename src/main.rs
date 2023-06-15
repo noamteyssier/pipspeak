@@ -1,129 +1,105 @@
+mod barcodes;
+mod cli;
+mod config;
+
 use anyhow::Result;
+use clap::Parser;
+use cli::Cli;
+use config::Config;
+use flate2::{write::GzEncoder, Compression};
 use fxread::initialize_reader;
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-};
+use std::{fs::File, io::Write};
 
-fn read_barcodes(filename: &str) -> Result<Vec<Vec<u8>>> {
-    let reader = File::open(filename).map(BufReader::new)?;
-    let mut barcodes = Vec::new();
-    for line in reader.lines() {
-        let barcode = line.map(|l| l.trim().as_bytes().to_vec())?;
-        barcodes.push(barcode);
-    }
-    Ok(barcodes)
-}
-
-/// Check if a sequence contains a barcode as a substring
-fn contains_barcode(seq: &[u8], barcode: &[u8]) -> Option<usize> {
-    seq.windows(barcode.len())
-        .position(|window| window == barcode)
-        .map(|pos| pos + barcode.len())
-}
-
-fn find_barcode(
-    seq: &[u8],
-    barcodes: &[Vec<u8>],
-    start_pos: usize,
-    end_pos: usize,
-) -> Option<(usize, usize)> {
-    for (bc_idx, barcode) in barcodes.iter().enumerate() {
-        if let Some(pos) = contains_barcode(&seq[start_pos..end_pos], barcode) {
-            return Some((pos, bc_idx));
-        }
-    }
-    None
+/// Writes a record to a gzip fastq file
+fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) -> Result<()> {
+    writer.write_all(b"@")?;
+    writer.write_all(id)?;
+    writer.write_all(b"\n")?;
+    writer.write_all(seq)?;
+    writer.write_all(b"\n+\n")?;
+    writer.write_all(qual)?;
+    writer.write_all(b"\n")?;
+    Ok(())
 }
 
 fn main() -> Result<()> {
-    let b1_fn = "data/barcodes_v3/fb_v3_bc1.tsv";
-    let b2_fn = "data/barcodes_v3/fb_v3_bc2.tsv";
-    let b3_fn = "data/barcodes_v3/fb_v3_bc3.tsv";
-    let b4_fn = "data/barcodes_v3/fb_v3_bc4.tsv";
+    let args = Cli::parse();
+    let config = Config::from_file(&args.config)?;
+    let r1 = initialize_reader(&args.r1)?;
+    let r2 = initialize_reader(&args.r2)?;
 
-    let b1 = read_barcodes(b1_fn)?;
-    let b2 = read_barcodes(b2_fn)?;
-    let b3 = read_barcodes(b3_fn)?;
-    let b4 = read_barcodes(b4_fn)?;
-    let spacers: Vec<&[u8]> = vec![b"ATG", b"GAG", b"TCGAG"];
-    let b1 = b1
-        .iter()
-        .map(|bc| [bc, spacers[0]].concat())
-        .collect::<Vec<Vec<u8>>>();
-    let b2 = b2
-        .iter()
-        .map(|bc| [bc, spacers[1]].concat())
-        .collect::<Vec<Vec<u8>>>();
-    let b3 = b3
-        .iter()
-        .map(|bc| [bc, spacers[2]].concat())
-        .collect::<Vec<Vec<u8>>>();
-    let offset = 3;
+    let r1_filename = args.prefix.clone() + "_R1.fq.gz";
+    let r2_filename = args.prefix.clone() + "_R2.fq.gz";
 
-    let b1_size = b1[0].len();
-    let b2_size = b2[0].len();
-    let b3_size = b3[0].len();
-    let b4_size = b4[0].len();
-
-    let r1_fn = "data/subset_R1.fastq.gz";
-    let r2_fn = "data/subset_R2.fastq.gz";
-    let r1 = initialize_reader(r1_fn)?;
-    let r2 = initialize_reader(r2_fn)?;
+    let mut nfilt_1 = 0;
+    let mut nfilt_2 = 0;
+    let mut nfilt_3 = 0;
+    let mut nfilt_4 = 0;
+    let mut n_reads = 0;
+    let mut n_passing = 0;
 
     let record_iter = r1
         .zip(r2)
+        .inspect(|_| n_reads += 1)
         .filter_map(|(rec1, rec2)| {
-            if let Some((pos, b1_idx)) = find_barcode(&rec1.seq(), &b1, 0, b1_size + offset) {
+            if let Some((pos, b1_idx)) = config.match_subsequence(rec1.seq(), 0, 0, Some(args.offset)) {
                 Some((rec1, rec2, pos, b1_idx))
             } else {
+                nfilt_1 += 1;
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx)| {
-            if let Some((new_pos, b2_idx)) = find_barcode(&rec1.seq(), &b2, pos, pos + b2_size) {
+            if let Some((new_pos, b2_idx)) = config.match_subsequence(rec1.seq(), 1, pos, None) {
                 Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx))
             } else {
+                nfilt_2 += 1;
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx, b2_idx)| {
-            if let Some((new_pos, b3_idx)) = find_barcode(&rec1.seq(), &b3, pos, pos + b3_size) {
+            if let Some((new_pos, b3_idx)) = config.match_subsequence(&rec1.seq(), 2, pos, None) {
                 Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx, b3_idx))
             } else {
+                nfilt_3 += 1;
                 None
             }
         })
         .filter_map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx)| {
-            if let Some((new_pos, b4_idx)) = find_barcode(&rec1.seq(), &b4, pos, pos + b4_size) {
+            if let Some((new_pos, b4_idx)) = config.match_subsequence(&rec1.seq(), 3, pos, None) {
+                n_passing += 1;
                 Some((rec1, rec2, pos + new_pos, b1_idx, b2_idx, b3_idx, b4_idx))
             } else {
+                nfilt_4 += 1;
                 None
             }
         })
         .map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx, b4_idx)| {
-            let umi = &rec1.seq()[pos..pos + 12];
-            (b1_idx, b2_idx, b3_idx, b4_idx, umi.to_vec(), rec2)
+            let umi = &rec1.seq()[pos..pos+args.umi_len];
+            (b1_idx, b2_idx, b3_idx, b4_idx, umi.to_vec(), pos+args.umi_len, rec1, rec2)
         })
-        .map(|(b1_idx, b2_idx, b3_idx, b4_idx, umi, rec2)| {
-            let construct = [
-                b1[b1_idx].clone(),
-                b2[b2_idx].clone(),
-                b3[b3_idx].clone(),
-                b4[b4_idx].clone(),
-                umi,
-            ]
-            .concat();
-            (construct, rec2)
+        .map(|(b1_idx, b2_idx, b3_idx, b4_idx, umi, pos, rec1, rec2)| {
+            let mut construct_seq = config.build_barcode(b1_idx, b2_idx, b3_idx, b4_idx);
+            construct_seq.extend_from_slice(&umi);
+            let construct_qual = rec1.qual().unwrap()[pos-construct_seq.len()..pos].to_vec();
+            (construct_seq, construct_qual, rec1, rec2)
         });
 
-    for (construct, rec2) in record_iter {
-        println!(
-            "{}\t{}",
-            String::from_utf8(construct).unwrap(),
-            rec2.seq().len()
-        );
+    let mut r1_writer = GzEncoder::new(File::create(r1_filename)?, Compression::default());
+    let mut r2_writer = GzEncoder::new(File::create(r2_filename)?, Compression::default());
+
+    for (construct_seq, construct_qual, rec1, rec2) in record_iter {
+        write_to_fastq(&mut r1_writer, rec1.id(), &construct_seq, &construct_qual)?;
+        write_to_fastq(&mut r2_writer, rec2.id(), rec2.seq(), rec2.qual().unwrap())?;
     }
+
+    eprintln!("Total number of reads: {}", n_reads);
+    eprintln!("Number of reads passing: {}", n_passing);
+    eprintln!("Percentage of reads passing: {:.2}%", n_passing as f64 / n_reads as f64 * 100.0);
+    eprintln!("Filtered reads missing barcode 1: {}", nfilt_1);
+    eprintln!("Filtered reads missing barcode 2: {}", nfilt_2);
+    eprintln!("Filtered reads missing barcode 3: {}", nfilt_3);
+    eprintln!("Filtered reads missing barcode 4: {}", nfilt_4);
 
     Ok(())
 }
