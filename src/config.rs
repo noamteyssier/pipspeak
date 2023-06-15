@@ -102,3 +102,73 @@ impl Config {
         bc
     }
 }
+
+#[cfg(test)]
+mod testing {
+
+    use super::*;
+
+    const TEST_PATH: &str = "data/config_v3.yaml";
+    
+    #[test]
+    fn load_yaml() {
+        let config = Config::from_file(TEST_PATH);
+        assert!(config.is_ok());
+    }
+
+    #[test]
+    fn barcode_lengths() {
+        let config = Config::from_file(TEST_PATH).unwrap();
+        assert_eq!(config.bc1.len(), 8 + 3);
+        assert_eq!(config.bc2.len(), 6 + 3);
+        assert_eq!(config.bc3.len(), 6 + 5);
+        assert_eq!(config.bc4.len(), 8);
+    }
+
+    #[test]
+    fn barcode_sequences() {
+        let config = Config::from_file(TEST_PATH).unwrap();
+
+        assert_eq!(config.bc1.get_barcode(0).unwrap(), b"AGAAACCAATG");
+        assert_eq!(config.bc1.get_barcode(95).unwrap(), b"TCTTTGACATG");
+        assert_eq!(config.bc1.get_barcode(96), None);
+
+        assert_eq!(config.bc2.get_barcode(0).unwrap(), b"TCTGTGGAG");
+        assert_eq!(config.bc2.get_barcode(95).unwrap(), b"GTAATCGAG");
+        assert_eq!(config.bc2.get_barcode(96), None);
+
+        assert_eq!(config.bc3.get_barcode(0).unwrap(), b"AAAGTGTCGAG");
+        assert_eq!(config.bc3.get_barcode(95).unwrap(), b"CTGAAGTCGAG");
+        assert_eq!(config.bc3.get_barcode(96), None);
+
+        assert_eq!(config.bc4.get_barcode(0).unwrap(), b"CTGGGTAT");
+        assert_eq!(config.bc4.get_barcode(95).unwrap(), b"AAACTACA");
+        assert_eq!(config.bc4.get_barcode(96), None);
+    }
+
+    #[test]
+    fn construct_building_a() {
+        let config = Config::from_file(TEST_PATH).unwrap();
+        let bc = config.build_barcode(0, 0, 0, 0);
+        let exp = [
+            "AGAAACCAATG".as_bytes(),
+            "TCTGTGGAG".as_bytes(),
+            "AAAGTGTCGAG".as_bytes(),
+            "CTGGGTAT".as_bytes(),
+        ].concat();
+        assert_eq!(bc, exp);
+    }
+
+    #[test]
+    fn construct_building_b() {
+        let config = Config::from_file(TEST_PATH).unwrap();
+        let bc = config.build_barcode(0, 95, 0, 95);
+        let exp = [
+            "AGAAACCAATG".as_bytes(),
+            "GTAATCGAG".as_bytes(),
+            "AAAGTGTCGAG".as_bytes(),
+            "AAACTACA".as_bytes(),
+        ].concat();
+        assert_eq!(bc, exp);
+    }
+}
