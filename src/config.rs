@@ -1,6 +1,6 @@
+use crate::barcodes::{Barcodes, Spacer};
 use anyhow::Result;
 use serde::Deserialize;
-use crate::barcodes::{Barcodes, Spacer};
 
 #[derive(Debug, Deserialize)]
 pub struct ConfigYaml {
@@ -47,11 +47,7 @@ impl Config {
         Ok(Self { bc1, bc2, bc3, bc4 })
     }
 
-    fn load_barcode(
-        path: &str,
-        spacer: Option<&Spacer>,
-        exact: bool,
-    ) -> Result<Barcodes> {
+    fn load_barcode(path: &str, spacer: Option<&Spacer>, exact: bool) -> Result<Barcodes> {
         if let Some(spacer) = spacer {
             Barcodes::from_file_with_spacer(path, spacer, exact)
         } else {
