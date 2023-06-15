@@ -42,7 +42,9 @@ fn main() -> Result<()> {
         .zip(r2)
         .inspect(|_| n_reads += 1)
         .filter_map(|(rec1, rec2)| {
-            if let Some((pos, b1_idx)) = config.match_subsequence(rec1.seq(), 0, 0, Some(args.offset)) {
+            if let Some((pos, b1_idx)) =
+                config.match_subsequence(rec1.seq(), 0, 0, Some(args.offset))
+            {
                 Some((rec1, rec2, pos, b1_idx))
             } else {
                 nfilt_1 += 1;
@@ -75,13 +77,22 @@ fn main() -> Result<()> {
             }
         })
         .map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx, b4_idx)| {
-            let umi = &rec1.seq()[pos..pos+args.umi_len];
-            (b1_idx, b2_idx, b3_idx, b4_idx, umi.to_vec(), pos+args.umi_len, rec1, rec2)
+            let umi = &rec1.seq()[pos..pos + args.umi_len];
+            (
+                b1_idx,
+                b2_idx,
+                b3_idx,
+                b4_idx,
+                umi.to_vec(),
+                pos + args.umi_len,
+                rec1,
+                rec2,
+            )
         })
         .map(|(b1_idx, b2_idx, b3_idx, b4_idx, umi, pos, rec1, rec2)| {
             let mut construct_seq = config.build_barcode(b1_idx, b2_idx, b3_idx, b4_idx);
             construct_seq.extend_from_slice(&umi);
-            let construct_qual = rec1.qual().unwrap()[pos-construct_seq.len()..pos].to_vec();
+            let construct_qual = rec1.qual().unwrap()[pos - construct_seq.len()..pos].to_vec();
             (construct_seq, construct_qual, rec1, rec2)
         });
 
@@ -95,7 +106,10 @@ fn main() -> Result<()> {
 
     eprintln!("Total number of reads: {}", n_reads);
     eprintln!("Number of reads passing: {}", n_passing);
-    eprintln!("Percentage of reads passing: {:.2}%", n_passing as f64 / n_reads as f64 * 100.0);
+    eprintln!(
+        "Percentage of reads passing: {:.2}%",
+        n_passing as f64 / n_reads as f64 * 100.0
+    );
     eprintln!("Filtered reads missing barcode 1: {}", nfilt_1);
     eprintln!("Filtered reads missing barcode 2: {}", nfilt_2);
     eprintln!("Filtered reads missing barcode 3: {}", nfilt_3);

@@ -1,6 +1,9 @@
 use anyhow::Result;
-use std::{fs::File, io::{BufRead, BufReader}};
-use hashbrown::{HashSet, HashMap};
+use hashbrown::{HashMap, HashSet};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 #[derive(Debug)]
 pub struct Barcodes {
@@ -62,15 +65,26 @@ impl Barcodes {
     /// and returns the position of the first nucleotide after the barcode
     /// as well as the barcode index
     pub fn match_sequence(&self, sequence: &[u8]) -> Option<(usize, usize)> {
-        sequence.windows(self.len)
+        sequence
+            .windows(self.len)
             .position(|window| self.map.contains_key(window))
-            .map(|pos| (pos + self.len, *self.map.get(&sequence[pos..pos + self.len]).unwrap()))
+            .map(|pos| {
+                (
+                    pos + self.len,
+                    *self.map.get(&sequence[pos..pos + self.len]).unwrap(),
+                )
+            })
     }
 
     /// Matches a subsequence of a sequence
     /// and returns the position of the first nucleotide after the barcode
     /// as well as the barcode index
-    pub fn match_subsequence(&self, sequence: &[u8], start: usize, end: usize) -> Option<(usize, usize)> {
+    pub fn match_subsequence(
+        &self,
+        sequence: &[u8],
+        start: usize,
+        end: usize,
+    ) -> Option<(usize, usize)> {
         self.match_sequence(&sequence[start..end])
     }
 
@@ -89,7 +103,9 @@ pub struct Spacer {
 }
 impl Spacer {
     pub fn from_str(seq: &str) -> Self {
-        Self { seq: seq.as_bytes().to_vec() }
+        Self {
+            seq: seq.as_bytes().to_vec(),
+        }
     }
     pub fn seq(&self) -> &[u8] {
         &self.seq

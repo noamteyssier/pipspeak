@@ -1,10 +1,8 @@
 use clap::Parser;
 
-
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
 pub struct Cli {
-    
     /// Input file for R1
     #[clap(short = 'i', long, value_parser)]
     pub r1: String,
