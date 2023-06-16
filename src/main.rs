@@ -120,6 +120,22 @@ fn parse_records(
     Ok(statistics)
 }
 
+/// Sets the number of threads to use for writing R1 and R2 files
+fn set_threads(num_threads: usize) -> (usize, usize) {
+    if num_threads == 0 {
+        set_threads(num_cpus::get())
+    } 
+    else if num_threads == 1 {
+        (1, 1)
+    } else {
+        if num_threads % 2 == 0 {
+            (num_threads / 2, num_threads / 2)
+        } else {
+            (num_threads / 2, num_threads / 2 + 1)
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let args = Cli::parse();
     let config = Config::from_file(&args.config, args.exact, args.linkers)?;
@@ -131,9 +147,12 @@ fn main() -> Result<()> {
     let log_filename = args.prefix.clone() + "_log.yaml";
     let whitelist_filename = args.prefix.clone() + "_whitelist.txt";
 
+    let (r1_threads, r2_threads) = set_threads(args.threads);
     let mut r1_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+        .num_threads(r1_threads)?
         .from_writer(File::create(&r1_filename)?);
     let mut r2_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+        .num_threads(r2_threads)?
         .from_writer(File::create(&r2_filename)?);
 
     let timestamp = Local::now().to_string();

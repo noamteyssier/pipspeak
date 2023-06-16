@@ -19,5 +19,6 @@ fxread = "0.2.5"
 gzp = "0.11.3"
 hashbrown = "0.14.0"
 indicatif = "0.17.5"
+num_cpus = "1.15.0"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_yaml = "0.9.21"
