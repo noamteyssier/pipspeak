@@ -58,6 +58,7 @@ pub struct Parameters {
     pub offset: usize,
     pub umi_len: usize,
     pub exact_matching: bool,
+    pub write_linkers: bool,
     pub pipspeak_version: String,
 }
 

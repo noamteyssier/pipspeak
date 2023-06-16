@@ -179,6 +179,7 @@ fn main() -> Result<()> {
         offset: args.offset,
         umi_len: args.umi_len,
         exact_matching: args.exact,
+        write_linkers: args.linkers,
         pipspeak_version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
