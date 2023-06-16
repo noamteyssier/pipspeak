@@ -10,8 +10,9 @@ use cli::Cli;
 use config::Config;
 use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
+use indicatif::ProgressBar;
 use log::{FileIO, Log, Parameters, Statistics, Timing};
-use std::{fs::File, io::Write, time::Instant};
+use std::{fs::File, io::Write, time::{Instant, Duration}};
 
 /// Writes a record to a gzip fastq file
 fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) -> Result<()> {
@@ -35,9 +36,18 @@ fn parse_records(
     umi_len: usize,
 ) -> Result<Statistics> {
     let mut statistics = Statistics::new();
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(Duration::from_millis(100));
     let record_iter = r1
         .zip(r2)
         .inspect(|_| statistics.total_reads += 1)
+        .enumerate()
+        .map(|(idx, pair)| {
+            if idx % 125 == 0 {
+                pb.set_message(format!("Processed {} reads", idx));
+            }
+            pair
+        })
         .filter_map(|(rec1, rec2)| {
             if let Some((pos, b1_idx)) = config.match_subsequence(rec1.seq(), 0, 0, Some(offset)) {
                 Some((rec1, rec2, pos, b1_idx))
@@ -97,6 +107,10 @@ fn parse_records(
         write_to_fastq(r2_out, rec2.id(), rec2.seq(), rec2.qual().unwrap())?;
     }
     statistics.calculate_metrics();
+    pb.finish_with_message(format!(
+        "Processed {} reads, {} passed filters ({:.4}%)",
+        statistics.total_reads, statistics.passing_reads, statistics.fraction_passing * 100.0
+    ));
     Ok(statistics)
 }
 
