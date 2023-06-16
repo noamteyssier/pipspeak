@@ -15,6 +15,10 @@ pub struct Cli {
     #[clap(short = 'p', long, value_parser, default_value = "pipspeak")]
     pub prefix: String,
 
+    /// Number of threads to use in gzip compression (0 = all threads)
+    #[clap(short = 't', long, default_value = "1")]
+    pub threads: usize,
+
     /// The amount of nucleotides away from the start of R1 to accept a barcode
     #[clap(short = 's', long, default_value = "5")]
     pub offset: usize,

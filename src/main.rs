@@ -8,8 +8,11 @@ use chrono::Local;
 use clap::Parser;
 use cli::Cli;
 use config::Config;
-use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
+use gzp::{
+    deflate::Gzip,
+    par::compress::{ParCompress, ParCompressBuilder},
+};
 use indicatif::ProgressBar;
 use log::{FileIO, Log, Parameters, Statistics, Timing};
 use std::{
@@ -33,8 +36,8 @@ fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) 
 fn parse_records(
     r1: Box<dyn FastxRead<Item = Record>>,
     r2: Box<dyn FastxRead<Item = Record>>,
-    r1_out: &mut GzEncoder<File>,
-    r2_out: &mut GzEncoder<File>,
+    r1_out: &mut ParCompress<Gzip>,
+    r2_out: &mut ParCompress<Gzip>,
     config: &Config,
     offset: usize,
     umi_len: usize,
@@ -120,6 +123,21 @@ fn parse_records(
     Ok(statistics)
 }
 
+/// Sets the number of threads to use for writing R1 and R2 files
+fn set_threads(num_threads: usize) -> (usize, usize) {
+    if num_threads == 0 {
+        set_threads(num_cpus::get())
+    } else if num_threads == 1 {
+        (1, 1)
+    } else {
+        if num_threads % 2 == 0 {
+            (num_threads / 2, num_threads / 2)
+        } else {
+            (num_threads / 2, num_threads / 2 + 1)
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let args = Cli::parse();
     let config = Config::from_file(&args.config, args.exact, args.linkers)?;
@@ -131,8 +149,13 @@ fn main() -> Result<()> {
     let log_filename = args.prefix.clone() + "_log.yaml";
     let whitelist_filename = args.prefix.clone() + "_whitelist.txt";
 
-    let mut r1_writer = GzEncoder::new(File::create(&r1_filename)?, Compression::default());
-    let mut r2_writer = GzEncoder::new(File::create(&r2_filename)?, Compression::default());
+    let (r1_threads, r2_threads) = set_threads(args.threads);
+    let mut r1_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+        .num_threads(r1_threads)?
+        .from_writer(File::create(&r1_filename)?);
+    let mut r2_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+        .num_threads(r2_threads)?
+        .from_writer(File::create(&r2_filename)?);
 
     let timestamp = Local::now().to_string();
     let start_time = Instant::now();
@@ -158,6 +181,7 @@ fn main() -> Result<()> {
         offset: args.offset,
         umi_len: args.umi_len,
         exact_matching: args.exact,
+        write_linkers: args.linkers,
         pipspeak_version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
