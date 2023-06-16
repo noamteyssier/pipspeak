@@ -1,22 +1,37 @@
+use std::{fs::File, io::{BufWriter, Write}};
+
 use anyhow::Result;
+use hashbrown::HashSet;
 use serde::Serialize;
 
-#[derive(Debug, Default, Serialize, Copy, Clone)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub struct Statistics {
     pub total_reads: usize,
     pub passing_reads: usize,
     pub fraction_passing: f64,
+    pub whitelist_size: usize,
     pub num_filtered_1: usize,
     pub num_filtered_2: usize,
     pub num_filtered_3: usize,
     pub num_filtered_4: usize,
+    #[serde(skip)]
+    pub whitelist: HashSet<Vec<u8>>,
 }
 impl Statistics {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn calculate_fraction_passing(&mut self) {
+    pub fn calculate_metrics(&mut self) {
         self.fraction_passing = self.passing_reads as f64 / self.total_reads as f64;
+        self.whitelist_size = self.whitelist.len();
+    }
+    pub fn whitelist_to_file(&self, file: &str) -> Result<()> {
+        let mut writer = File::create(file).map(BufWriter::new)?;
+        for seq in &self.whitelist {
+            writer.write(seq)?;
+            writer.write(b"\n")?;
+        }
+        Ok(())
     }
 }
 
@@ -32,6 +47,7 @@ pub struct FileIO {
     pub readpath_r2: String,
     pub writepath_r1: String,
     pub writepath_r2: String,
+    pub whitelist_path: String,
 }
 
 #[derive(Debug, Serialize)]

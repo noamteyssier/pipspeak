@@ -10,6 +10,7 @@ use cli::Cli;
 use config::Config;
 use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
+use hashbrown::HashSet;
 use log::{Log, Statistics, Timing, Parameters, FileIO};
 use std::{fs::File, io::Write, time::Instant};
 
@@ -94,11 +95,11 @@ fn parse_records(
         });
 
     for (c_seq, c_qual, rec1, rec2) in record_iter {
+        statistics.whitelist.insert(c_seq.clone());
         write_to_fastq(r1_out, rec1.id(), &c_seq, &c_qual)?;
         write_to_fastq(r2_out, rec2.id(), rec2.seq(), rec2.qual().unwrap())?;
     }
-
-    statistics.calculate_fraction_passing();
+    statistics.calculate_metrics();
     Ok(statistics)
 }
 
@@ -111,6 +112,7 @@ fn main() -> Result<()> {
     let r1_filename = args.prefix.clone() + "_R1.fq.gz";
     let r2_filename = args.prefix.clone() + "_R2.fq.gz";
     let log_filename = args.prefix.clone() + "_log.yaml";
+    let whitelist_filename = args.prefix.clone() + "_whitelist.txt";
 
     let mut r1_writer = GzEncoder::new(File::create(&r1_filename)?, Compression::default());
     let mut r2_writer = GzEncoder::new(File::create(&r2_filename)?, Compression::default());
@@ -127,6 +129,7 @@ fn main() -> Result<()> {
         args.offset,
         args.umi_len,
     )?;
+    statistics.whitelist_to_file(&whitelist_filename)?;
 
     let elapsed_time = start_time.elapsed().as_secs_f64();
     let timing = Timing {
@@ -146,6 +149,7 @@ fn main() -> Result<()> {
         readpath_r2: args.r2,
         writepath_r1: r1_filename,
         writepath_r2: r2_filename,
+        whitelist_path: whitelist_filename,
     };
 
     let log = Log {
