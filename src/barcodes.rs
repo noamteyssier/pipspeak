@@ -14,6 +14,7 @@ pub struct Barcodes {
     map: HashMap<Vec<u8>, usize>,
     index: HashMap<usize, Vec<u8>>,
     len: usize,
+    spacer_len: Option<usize>,
 }
 impl Barcodes {
     pub fn from_file(path: &str, exact: bool) -> Result<Self> {
@@ -72,7 +73,18 @@ impl Barcodes {
             anyhow::bail!("Barcodes have different lengths");
         };
 
-        Ok(Self { map, index, len })
+        let spacer_len = if let Some(spacer) = spacer {
+            Some(spacer.seq().len())
+        } else {
+            None
+        };
+
+        Ok(Self {
+            map,
+            index,
+            len,
+            spacer_len,
+        })
     }
 
     /// Reads a sequence from a line and appends a spacer if given
@@ -122,8 +134,17 @@ impl Barcodes {
     }
 
     /// Returns the barcode sequence for a given index
-    pub fn get_barcode(&self, idx: usize) -> Option<&[u8]> {
-        self.index.get(&idx).map(|bc| &bc[..])
+    pub fn get_barcode(&self, idx: usize, with_spacer: bool) -> Option<&[u8]> {
+        let end_pos = if with_spacer {
+            self.len
+        } else {
+            if let Some(spacer_len) = self.spacer_len {
+                self.len - spacer_len
+            } else {
+                self.len
+            }
+        };
+        self.index.get(&idx).map(|bc| &bc[..end_pos])
     }
 
     /// Returns the barcode index for a given sequence
@@ -191,10 +212,15 @@ mod testing {
         assert_eq!(barcodes.map.len(), 4);
         assert_eq!(barcodes.index.len(), 4);
 
-        assert_eq!(barcodes.get_barcode(0).unwrap(), b"AGAAACCA");
-        assert_eq!(barcodes.get_barcode(1).unwrap(), b"GATTTCCC");
-        assert_eq!(barcodes.get_barcode(2).unwrap(), b"AAGTCCAA");
-        assert_eq!(barcodes.get_barcode(3).unwrap(), b"GAGAAACC");
+        assert_eq!(barcodes.get_barcode(0, true).unwrap(), b"AGAAACCA");
+        assert_eq!(barcodes.get_barcode(1, true).unwrap(), b"GATTTCCC");
+        assert_eq!(barcodes.get_barcode(2, true).unwrap(), b"AAGTCCAA");
+        assert_eq!(barcodes.get_barcode(3, true).unwrap(), b"GAGAAACC");
+
+        assert_eq!(barcodes.get_barcode(0, false).unwrap(), b"AGAAACCA");
+        assert_eq!(barcodes.get_barcode(1, false).unwrap(), b"GATTTCCC");
+        assert_eq!(barcodes.get_barcode(2, false).unwrap(), b"AAGTCCAA");
+        assert_eq!(barcodes.get_barcode(3, false).unwrap(), b"GAGAAACC");
 
         assert_eq!(barcodes.get_id(b"AGAAACCA").unwrap(), 0);
         assert_eq!(barcodes.get_id(b"GATTTCCC").unwrap(), 1);
@@ -209,10 +235,10 @@ mod testing {
         assert_eq!(barcodes.map.len(), 100);
         assert_eq!(barcodes.index.len(), 4);
 
-        assert_eq!(barcodes.get_barcode(0).unwrap(), b"AGAAACCA");
-        assert_eq!(barcodes.get_barcode(1).unwrap(), b"GATTTCCC");
-        assert_eq!(barcodes.get_barcode(2).unwrap(), b"AAGTCCAA");
-        assert_eq!(barcodes.get_barcode(3).unwrap(), b"GAGAAACC");
+        assert_eq!(barcodes.get_barcode(0, true).unwrap(), b"AGAAACCA");
+        assert_eq!(barcodes.get_barcode(1, true).unwrap(), b"GATTTCCC");
+        assert_eq!(barcodes.get_barcode(2, true).unwrap(), b"AAGTCCAA");
+        assert_eq!(barcodes.get_barcode(3, true).unwrap(), b"GAGAAACC");
 
         // no mismatch
         assert_eq!(barcodes.get_id(b"AGAAACCA").unwrap(), 0);
@@ -259,10 +285,10 @@ mod testing {
         assert_eq!(barcodes.map.len(), 136);
         assert_eq!(barcodes.index.len(), 4);
 
-        assert_eq!(barcodes.get_barcode(0).unwrap(), b"AGAAACCAATG");
-        assert_eq!(barcodes.get_barcode(1).unwrap(), b"GATTTCCCATG");
-        assert_eq!(barcodes.get_barcode(2).unwrap(), b"AAGTCCAAATG");
-        assert_eq!(barcodes.get_barcode(3).unwrap(), b"GAGAAACCATG");
+        assert_eq!(barcodes.get_barcode(0, true).unwrap(), b"AGAAACCAATG");
+        assert_eq!(barcodes.get_barcode(1, true).unwrap(), b"GATTTCCCATG");
+        assert_eq!(barcodes.get_barcode(2, true).unwrap(), b"AAGTCCAAATG");
+        assert_eq!(barcodes.get_barcode(3, true).unwrap(), b"GAGAAACCATG");
 
         // no mismatch
         assert_eq!(barcodes.get_id(b"AGAAACCAATG").unwrap(), 0);
@@ -291,10 +317,10 @@ mod testing {
         assert_eq!(barcodes.map.len(), 4);
         assert_eq!(barcodes.index.len(), 4);
 
-        assert_eq!(barcodes.get_barcode(0).unwrap(), b"AGAAACCAATG");
-        assert_eq!(barcodes.get_barcode(1).unwrap(), b"GATTTCCCATG");
-        assert_eq!(barcodes.get_barcode(2).unwrap(), b"AAGTCCAAATG");
-        assert_eq!(barcodes.get_barcode(3).unwrap(), b"GAGAAACCATG");
+        assert_eq!(barcodes.get_barcode(0, true).unwrap(), b"AGAAACCAATG");
+        assert_eq!(barcodes.get_barcode(1, true).unwrap(), b"GATTTCCCATG");
+        assert_eq!(barcodes.get_barcode(2, true).unwrap(), b"AAGTCCAAATG");
+        assert_eq!(barcodes.get_barcode(3, true).unwrap(), b"GAGAAACCATG");
 
         assert_eq!(barcodes.get_id(b"AGAAACCAATG").unwrap(), 0);
         assert_eq!(barcodes.get_id(b"GATTTCCCATG").unwrap(), 1);
