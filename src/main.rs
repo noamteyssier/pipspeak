@@ -10,7 +10,6 @@ use cli::Cli;
 use config::Config;
 use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
-use hashbrown::HashSet;
 use log::{FileIO, Log, Parameters, Statistics, Timing};
 use std::{fs::File, io::Write, time::Instant};
 
