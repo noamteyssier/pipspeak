@@ -9,7 +9,10 @@ use clap::Parser;
 use cli::Cli;
 use config::Config;
 use fxread::{initialize_reader, FastxRead, Record};
-use gzp::{par::compress::{ParCompressBuilder, ParCompress}, deflate::Gzip};
+use gzp::{
+    deflate::Gzip,
+    par::compress::{ParCompress, ParCompressBuilder},
+};
 use indicatif::ProgressBar;
 use log::{FileIO, Log, Parameters, Statistics, Timing};
 use std::{
@@ -124,8 +127,7 @@ fn parse_records(
 fn set_threads(num_threads: usize) -> (usize, usize) {
     if num_threads == 0 {
         set_threads(num_cpus::get())
-    } 
-    else if num_threads == 1 {
+    } else if num_threads == 1 {
         (1, 1)
     } else {
         if num_threads % 2 == 0 {
