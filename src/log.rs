@@ -1,4 +1,7 @@
-use std::{fs::File, io::{BufWriter, Write}};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 use anyhow::Result;
 use hashbrown::HashSet;
@@ -67,7 +70,6 @@ pub struct Log {
     pub timing: Timing,
 }
 impl Log {
-
     pub fn stderr(&self) -> Result<()> {
         let yaml = serde_yaml::to_string(&self)?;
         eprint!("{}", yaml);

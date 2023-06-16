@@ -11,7 +11,7 @@ use config::Config;
 use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
 use hashbrown::HashSet;
-use log::{Log, Statistics, Timing, Parameters, FileIO};
+use log::{FileIO, Log, Parameters, Statistics, Timing};
 use std::{fs::File, io::Write, time::Instant};
 
 /// Writes a record to a gzip fastq file
@@ -40,9 +40,7 @@ fn parse_records(
         .zip(r2)
         .inspect(|_| statistics.total_reads += 1)
         .filter_map(|(rec1, rec2)| {
-            if let Some((pos, b1_idx)) =
-                config.match_subsequence(rec1.seq(), 0, 0, Some(offset))
-            {
+            if let Some((pos, b1_idx)) = config.match_subsequence(rec1.seq(), 0, 0, Some(offset)) {
                 Some((rec1, rec2, pos, b1_idx))
             } else {
                 statistics.num_filtered_1 += 1;
