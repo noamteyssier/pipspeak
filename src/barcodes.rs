@@ -79,7 +79,12 @@ impl Barcodes {
             None
         };
 
-        Ok(Self { map, index, len, spacer_len })
+        Ok(Self {
+            map,
+            index,
+            len,
+            spacer_len,
+        })
     }
 
     /// Reads a sequence from a line and appends a spacer if given

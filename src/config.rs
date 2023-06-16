@@ -45,7 +45,13 @@ impl Config {
         let bc2 = Self::load_barcode(&yaml.barcodes.bc2, Some(&spacer2), exact)?;
         let bc3 = Self::load_barcode(&yaml.barcodes.bc3, Some(&spacer3), exact)?;
         let bc4 = Self::load_barcode(&yaml.barcodes.bc4, None, exact)?;
-        Ok(Self { bc1, bc2, bc3, bc4, linkers })
+        Ok(Self {
+            bc1,
+            bc2,
+            bc3,
+            bc4,
+            linkers,
+        })
     }
 
     fn load_barcode(path: &str, spacer: Option<&Spacer>, exact: bool) -> Result<Barcodes> {
