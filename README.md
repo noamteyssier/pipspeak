@@ -102,7 +102,8 @@ This program will output 3 files per run:
 
 1. `<args.prefix>_R1.fq.gz`: A fastq with the `[barcode][UMI]` construct for all reads passing the whitelist.
 2. `<args.prefix>_R2.fq.gz`: An unaltered fastq of the R2 for all reads passing the whitelist.
-3. `<args.prefix>_log.yaml`: A log file containing the filtering statistics of the run.
+3. `<args.prefix>_whitelist.txt`: a whitelist of all the barcodes found in the dataset.
+4. `<args.prefix>_log.yaml`: A log file containing the filtering statistics of the run.
 
 ### Configuration
 
