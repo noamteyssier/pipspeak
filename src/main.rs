@@ -12,7 +12,11 @@ use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
 use indicatif::ProgressBar;
 use log::{FileIO, Log, Parameters, Statistics, Timing};
-use std::{fs::File, io::Write, time::{Instant, Duration}};
+use std::{
+    fs::File,
+    io::Write,
+    time::{Duration, Instant},
+};
 
 /// Writes a record to a gzip fastq file
 fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) -> Result<()> {
@@ -109,7 +113,9 @@ fn parse_records(
     statistics.calculate_metrics();
     pb.finish_with_message(format!(
         "Processed {} reads, {} passed filters ({:.4}%)",
-        statistics.total_reads, statistics.passing_reads, statistics.fraction_passing * 100.0
+        statistics.total_reads,
+        statistics.passing_reads,
+        statistics.fraction_passing * 100.0
     ));
     Ok(statistics)
 }
