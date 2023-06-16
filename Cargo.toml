@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 chrono = "0.4.26"
-clap = { version = "4.3.4", features = ["derive", "cargo"] }
+clap = { version = "4.3.4", features = ["derive"] }
 disambiseq = "0.1.10"
 flate2 = { version = "1.0.26", features = ["zlib-ng"] }
 fxread = "0.2.5"
