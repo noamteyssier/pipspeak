@@ -31,6 +31,10 @@ pub struct Cli {
     #[clap(short = 'x', long)]
     pub exact: bool,
 
+    /// Include linkers in the output
+    #[clap(short = 'l', long)]
+    pub linkers: bool,
+
     /// Do not write anything to stderr
     #[clap(short = 'q', long)]
     pub quiet: bool,

@@ -122,7 +122,7 @@ fn parse_records(
 
 fn main() -> Result<()> {
     let args = Cli::parse();
-    let config = Config::from_file(&args.config, args.exact)?;
+    let config = Config::from_file(&args.config, args.exact, args.linkers)?;
     let r1 = initialize_reader(&args.r1)?;
     let r2 = initialize_reader(&args.r2)?;
 
