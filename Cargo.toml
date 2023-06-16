@@ -13,6 +13,7 @@ disambiseq = "0.1.10"
 flate2 = { version = "1.0.26", features = ["zlib-ng"] }
 fxread = "0.2.5"
 hashbrown = "0.14.0"
+indicatif = "0.17.5"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_yaml = "0.9.21"
 
