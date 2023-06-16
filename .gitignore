@@ -21,3 +21,6 @@ Cargo.lock
 
 # Ignore log yamls
 **log.yaml
+
+# Ignore whitelist
+**whitelist.txt
