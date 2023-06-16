@@ -8,8 +8,8 @@ use chrono::Local;
 use clap::Parser;
 use cli::Cli;
 use config::Config;
-use flate2::{write::GzEncoder, Compression};
 use fxread::{initialize_reader, FastxRead, Record};
+use gzp::{par::compress::{ParCompressBuilder, ParCompress}, deflate::Gzip};
 use indicatif::ProgressBar;
 use log::{FileIO, Log, Parameters, Statistics, Timing};
 use std::{
@@ -33,8 +33,8 @@ fn write_to_fastq<W: Write>(writer: &mut W, id: &[u8], seq: &[u8], qual: &[u8]) 
 fn parse_records(
     r1: Box<dyn FastxRead<Item = Record>>,
     r2: Box<dyn FastxRead<Item = Record>>,
-    r1_out: &mut GzEncoder<File>,
-    r2_out: &mut GzEncoder<File>,
+    r1_out: &mut ParCompress<Gzip>,
+    r2_out: &mut ParCompress<Gzip>,
     config: &Config,
     offset: usize,
     umi_len: usize,
@@ -131,8 +131,10 @@ fn main() -> Result<()> {
     let log_filename = args.prefix.clone() + "_log.yaml";
     let whitelist_filename = args.prefix.clone() + "_whitelist.txt";
 
-    let mut r1_writer = GzEncoder::new(File::create(&r1_filename)?, Compression::default());
-    let mut r2_writer = GzEncoder::new(File::create(&r2_filename)?, Compression::default());
+    let mut r1_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+        .from_writer(File::create(&r1_filename)?);
+    let mut r2_writer: ParCompress<Gzip> = ParCompressBuilder::new()
+        .from_writer(File::create(&r2_filename)?);
 
     let timestamp = Local::now().to_string();
     let start_time = Instant::now();
