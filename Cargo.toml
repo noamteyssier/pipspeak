@@ -16,7 +16,7 @@ chrono = "0.4.26"
 clap = { version = "4.3.4", features = ["derive"] }
 disambiseq = "0.1.10"
 fxread = "0.2.5"
-gzp = "0.11.3"
+gzp = { version = "0.11.3", features=["deflate_rust"], default-features = false }
 hashbrown = "0.14.0"
 indicatif = "0.17.5"
 num_cpus = "1.15.0"
