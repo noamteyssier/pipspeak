@@ -17,6 +17,7 @@ pub struct Statistics {
     pub num_filtered_2: usize,
     pub num_filtered_3: usize,
     pub num_filtered_4: usize,
+    pub num_filtered_umi: usize,
     #[serde(skip)]
     pub whitelist: HashSet<Vec<u8>>,
 }
