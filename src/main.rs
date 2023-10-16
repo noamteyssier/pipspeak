@@ -88,18 +88,23 @@ fn parse_records(
                 None
             }
         })
-        .map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx, b4_idx)| {
-            let umi = &rec1.seq()[pos..pos + umi_len];
-            (
-                b1_idx,
-                b2_idx,
-                b3_idx,
-                b4_idx,
-                umi.to_vec(),
-                pos + umi_len,
-                rec1,
-                rec2,
-            )
+        .filter_map(|(rec1, rec2, pos, b1_idx, b2_idx, b3_idx, b4_idx)| {
+            if rec1.seq().len() < pos + umi_len {
+                statistics.num_filtered_umi += 1;
+                None
+            } else {
+                let umi = &rec1.seq()[pos..pos + umi_len];
+                Some((
+                    b1_idx,
+                    b2_idx,
+                    b3_idx,
+                    b4_idx,
+                    umi.to_vec(),
+                    pos + umi_len,
+                    rec1,
+                    rec2,
+                ))
+            }
         })
         .map(|(b1_idx, b2_idx, b3_idx, b4_idx, umi, pos, rec1, rec2)| {
             let mut construct_seq = config.build_barcode(b1_idx, b2_idx, b3_idx, b4_idx);
