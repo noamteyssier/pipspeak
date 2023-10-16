@@ -94,7 +94,16 @@ fn parse_records(
                 None
             } else {
                 let umi = &rec1.seq()[pos..pos + umi_len];
-                Some((b1_idx, b2_idx, b3_idx, b4_idx, umi.to_vec(), pos + umi_len, rec1, rec2))
+                Some((
+                    b1_idx,
+                    b2_idx,
+                    b3_idx,
+                    b4_idx,
+                    umi.to_vec(),
+                    pos + umi_len,
+                    rec1,
+                    rec2,
+                ))
             }
         })
         .map(|(b1_idx, b2_idx, b3_idx, b4_idx, umi, pos, rec1, rec2)| {
